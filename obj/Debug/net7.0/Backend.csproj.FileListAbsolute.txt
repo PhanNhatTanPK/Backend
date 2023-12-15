@@ -86,3 +86,10 @@ F:\HOC\Hoc_ky_9\DoAnTotNghiep\Backend\bin\Debug\net7.0\Microsoft.Extensions.Depe
 F:\HOC\Hoc_ky_9\DoAnTotNghiep\Backend\bin\Debug\net7.0\Mono.TextTemplating.dll
 F:\HOC\Hoc_ky_9\DoAnTotNghiep\Backend\bin\Debug\net7.0\System.CodeDom.dll
 F:\HOC\Hoc_ky_9\DoAnTotNghiep\Backend\bin\Debug\net7.0\Twilio.dll
+F:\HOC\Hoc_ky_9\DoAnTotNghiep\Backend\bin\Debug\net7.0\ClosedXML.dll
+F:\HOC\Hoc_ky_9\DoAnTotNghiep\Backend\bin\Debug\net7.0\DocumentFormat.OpenXml.dll
+F:\HOC\Hoc_ky_9\DoAnTotNghiep\Backend\bin\Debug\net7.0\ExcelNumberFormat.dll
+F:\HOC\Hoc_ky_9\DoAnTotNghiep\Backend\bin\Debug\net7.0\Irony.dll
+F:\HOC\Hoc_ky_9\DoAnTotNghiep\Backend\bin\Debug\net7.0\SixLabors.Fonts.dll
+F:\HOC\Hoc_ky_9\DoAnTotNghiep\Backend\bin\Debug\net7.0\System.IO.Packaging.dll
+F:\HOC\Hoc_ky_9\DoAnTotNghiep\Backend\bin\Debug\net7.0\XLParser.dll

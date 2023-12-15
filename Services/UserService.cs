@@ -16,11 +16,16 @@ namespace Backend.Services
         private readonly IUnitOfWork _unitOfWork;
         private readonly SignInManager<ApplicationUser> _signInManager;
         private IConfiguration _config;
-        private readonly Microsoft.AspNetCore.Identity.UserManager<ApplicationUser> _userManager;
+        private readonly UserManager<ApplicationUser> _userManager;
         private readonly IEmailSender _emailSender;
         //private readonly EmailServices _emailServices;
 
-        public UserService(IUnitOfWork unitOfWork, SignInManager<ApplicationUser> signInManager, TrangTraiContext dbContext, Microsoft.AspNetCore.Identity.UserManager<ApplicationUser> userManager, IConfiguration config, IEmailSender emailSender)
+        public UserService(IUnitOfWork unitOfWork,
+                        SignInManager<ApplicationUser> signInManager,
+                        TrangTraiContext dbContext,
+                        UserManager<ApplicationUser> userManager,
+                        IConfiguration config,
+                        IEmailSender emailSender)
         {
             _unitOfWork = unitOfWork;
             _signInManager = signInManager;
@@ -62,6 +67,7 @@ namespace Backend.Services
                 new Claim(JwtRegisteredClaimNames.UniqueName, user.UserName),
                 new Claim(_options.ClaimsIdentity.UserIdClaimType, user.Id.ToString()),
                 new Claim(_options.ClaimsIdentity.UserNameClaimType, user.UserName),
+                new Claim("PhoneNumber", user.PhoneNumber),
                 new Claim("DistrictId", user.DistrictId.ToString())
             };
 

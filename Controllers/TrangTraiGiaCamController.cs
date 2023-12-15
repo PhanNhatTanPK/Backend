@@ -6,9 +6,10 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Data;
+using TRANGTRAICHANNUOI.DTO;
 
 namespace TRANGTRAICHANNUOI.Controllers
-{   
+{
     [ApiController]
     [Route("[controller]")]
     [Authorize]
@@ -19,12 +20,36 @@ namespace TRANGTRAICHANNUOI.Controllers
         private TrangTraiContext _dbContext;
         private TrangTraiService _trangTraiService;
         public TrangTraiGiaCamController(ILogger<TrangTraiGiaCamController> logger,
-            TrangTraiContext dbContext,
-            TrangTraiService trangTraiService)
+                                        TrangTraiContext dbContext,
+                                        TrangTraiService trangTraiService)
         {
             _logger = logger;
             _dbContext = dbContext;
             _trangTraiService = trangTraiService;
+        }
+
+        [HttpGet]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        public async Task<IActionResult> Index(string search, int page = 1, int pageSize = 10)
+        {
+            IQueryable<TrangTraiGiaCam> query;
+            int skip = (page - 1) * pageSize;
+            if (search == "all")
+            { query = _dbContext.TrangTraiGiaCam.Where(x => x.IsDeleted != true); }
+            else
+            {
+                query = _dbContext.TrangTraiGiaCam.Where(x => x.TenTrai.ToLower().Contains(search.ToLower()));
+            }
+            int totalRecords = await query.CountAsync();
+            var finalQuery = await query.Skip(skip).Take(pageSize).ToListAsync();
+            var pagingModel = new PagingModel<TrangTraiGiaCam>
+            {
+                Page = page,
+                PageSize = pageSize,
+                TotalItems = totalRecords,
+                Items = finalQuery
+            };
+            return Ok(pagingModel);
         }
 
         [HttpGet("LoadTraiGiaCam")]
@@ -82,48 +107,7 @@ namespace TRANGTRAICHANNUOI.Controllers
             }
         }
 
-        [HttpPost("AddTrangTraiGiaCam")]
-        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
-        public async Task<IActionResult> AddTrangTraiGiaCam([FromBody] TrangTraiGiaCam addMapRequest)
-        {
-            addMapRequest.LongitudeNumber = _trangTraiService.CoordinateToDecimal(addMapRequest.Longitude);
-            addMapRequest.LatitudeNumber = _trangTraiService.CoordinateToDecimal(addMapRequest.Latitude);
-            if (ModelState.IsValid)
-            {
-                await _dbContext.TrangTraiGiaCam.AddAsync(addMapRequest);
-                await _dbContext.SaveChangesAsync();
-                return Ok(addMapRequest);
-            }
-            return View(addMapRequest);
-        }
-
-        [HttpPost("AddTinhHinhDichGiaCam")]
-        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
-        public async Task<IActionResult> AddTinhHinhDichGiaCam([FromBody] TinhHinhDichBenhGiaCam model)
-        {
-            if (ModelState.IsValid)
-            {
-                await _dbContext.TinhHinhDichBenhGiaCam.AddAsync(model);
-                await _dbContext.SaveChangesAsync();
-                return Ok(model);
-            }
-            return BadRequest();
-        }
-
-        [HttpPost("ThemTiemPhongGiaCam")]
-        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
-        public async Task<IActionResult> ThemTiemPhongGiaCam([FromBody] TiemPhongGiaCam model)
-        {
-            if (ModelState.IsValid)
-            {
-                await _dbContext.TiemPhongGiaCam.AddAsync(model);
-                await _dbContext.SaveChangesAsync();
-                return Ok(model);
-            }
-            return BadRequest();
-        }
-
-        [HttpGet("GetTiemPhongTTGiaCam")]
+        [HttpGet("GetTiemPhongTTGiaCam/{id}")]
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<IActionResult> GetTiemPhongTTGiaCam(Guid id)
         {
@@ -140,7 +124,7 @@ namespace TRANGTRAICHANNUOI.Controllers
             }
         }
 
-        [HttpGet("TinhHinhDichTTGiaCam")]
+        [HttpGet("TinhHinhDichTTGiaCam/{id}")]
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<IActionResult> TinhHinhDichTTGiaCam(Guid id)
         {
@@ -174,7 +158,213 @@ namespace TRANGTRAICHANNUOI.Controllers
             }
         }
 
-        [HttpPost("AddOrEdit")]
+        [HttpGet("GetATDBTTGiaCam/{id}")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        public async Task<IActionResult> GetATDBTTGiaCam(Guid id)
+        {
+            if (id == Guid.Empty)
+                return BadRequest();
+            else
+            {
+                var trangTraiGiaCam = await _dbContext.CNATDBTTGiaCam.Where(x => x.IdTrangTraiGiaCam == id).ToListAsync();
+                if (trangTraiGiaCam == null)
+                {
+                    return NotFound();
+                }
+                return Ok(trangTraiGiaCam);
+            }
+        }
+
+        [HttpGet("CheckDichTTGiaCam")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        public async Task<IActionResult> CheckDichTTGiaCam(Guid id)
+        {
+            if (id == Guid.Empty)
+                return NotFound();
+            else
+            {
+                var farm = await _dbContext.Dich.Where(x => x.IdTrangTrai == id && x.IsDeleted != true).ToListAsync();
+                if (farm == null)
+                {
+                    return NotFound();
+                }
+                var lastFarm = farm.LastOrDefault();
+                return Ok(lastFarm);
+            }
+
+        }
+
+        [HttpGet("GetVSTYTTGiaCam/{id}")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        public async Task<IActionResult> GetVSTYTTGiaCam(Guid id)
+        {
+            if (id == Guid.Empty)
+                return BadRequest();
+            else
+            {
+                var trangTraiGiaCam = await _dbContext.CNVSTYTTGiaCam.Where(x => x.IdTrangTraiGiaCam == id).ToListAsync();
+                if (trangTraiGiaCam == null)
+                {
+                    return NotFound();
+                }
+                return Ok(trangTraiGiaCam);
+            }
+        }
+
+        [HttpGet("GetVietGAHPTTGiaCam/{id}")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        public async Task<IActionResult> GetVietGAHPTTGiaCam(Guid id)
+        {
+            if (id == Guid.Empty)
+                return BadRequest();
+            else
+            {
+                var trangTraiGiaCam = await _dbContext.CNVietGAHPTTGiaCam.Where(x => x.IdTrangTraiGiaCam == id).ToListAsync();
+                if (trangTraiGiaCam == null)
+                {
+                    return NotFound();
+                }
+                return Ok(trangTraiGiaCam);
+            }
+        }
+
+        [HttpGet("GetDKCNTTGiaCam/{id}")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        public async Task<IActionResult> GetDKCNTTGiaCam(Guid id)
+        {
+            if (id == Guid.Empty)
+                return BadRequest();
+            else
+            {
+                var trangTraiGiaCam = await _dbContext.CNDKCNTTGiaCam.Where(x => x.IdTrangTraiGiaCam == id).ToListAsync();
+                if (trangTraiGiaCam == null)
+                {
+                    return NotFound();
+                }
+                return Ok(trangTraiGiaCam);
+            }
+        }
+
+        [HttpPost("AddTrangTraiGiaCam")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        public async Task<IActionResult> AddTrangTraiGiaCam([FromBody] TrangTraiGiaCam addMapRequest)
+        {
+            addMapRequest.LongitudeNumber = _trangTraiService.CoordinateToDecimal(addMapRequest.Longitude);
+            addMapRequest.LatitudeNumber = _trangTraiService.CoordinateToDecimal(addMapRequest.Latitude);
+            if (ModelState.IsValid)
+            {
+                await _dbContext.TrangTraiGiaCam.AddAsync(addMapRequest);
+                await _dbContext.SaveChangesAsync();
+                return Ok(addMapRequest);
+            }
+            return Ok(addMapRequest);
+        }
+
+        [HttpPost("AddTinhHinhDichGiaCam")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        public async Task<IActionResult> AddTinhHinhDichGiaCam([FromBody] TinhHinhDichBenhGiaCam model)
+        {
+            if (ModelState.IsValid)
+            {
+                await _dbContext.TinhHinhDichBenhGiaCam.AddAsync(model);
+                await _dbContext.SaveChangesAsync();
+                return Ok(model);
+            }
+            return BadRequest();
+        }
+
+        [HttpPost("ThemTiemPhongGiaCam")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        public async Task<IActionResult> ThemTiemPhongGiaCam([FromBody] TiemPhongGiaCam model)
+        {
+            if (ModelState.IsValid)
+            {
+                await _dbContext.TiemPhongGiaCam.AddAsync(model);
+                await _dbContext.SaveChangesAsync();
+                return Ok(model);
+            }
+            return BadRequest();
+        }
+
+        [HttpPost("AddATDBTTGiaCam")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        public async Task<IActionResult> AddATDBTTGiaCam([FromBody] CNATDBTTGiaCam model)
+        {
+            if (ModelState.IsValid)
+            {
+                await _dbContext.CNATDBTTGiaCam.AddAsync(model);
+                await _dbContext.SaveChangesAsync();
+                return Ok(model);
+            }
+            return BadRequest();
+        }
+
+        [HttpPost("AddDKCNTTGiaCam")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        public async Task<IActionResult> AddDKCNTTGiaCam([FromBody] CNDKCNTTGiaCam model)
+        {
+            if (ModelState.IsValid)
+            {
+                await _dbContext.CNDKCNTTGiaCam.AddAsync(model);
+                await _dbContext.SaveChangesAsync();
+                return Ok(model);
+            }
+            return Ok(model);
+        }
+
+        [HttpPost("AddVietGAHPTTGiaCam")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        public async Task<IActionResult> AddVietGAHPTTGiaCam([FromBody] CNVietGAHPTTGiaCam model)
+        {
+            if (ModelState.IsValid)
+            {
+                await _dbContext.CNVietGAHPTTGiaCam.AddAsync(model);
+                await _dbContext.SaveChangesAsync();
+                return Ok(model);
+            }
+            return BadRequest();
+        }
+
+        [HttpPost("AddVSTYTTGiaCam")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        public async Task<IActionResult> AddVSTYTTGiaCam([FromBody] CNVSTYTTGiaCam model)
+        {
+            if (ModelState.IsValid)
+            {
+                await _dbContext.CNVSTYTTGiaCam.AddAsync(model);
+                await _dbContext.SaveChangesAsync();
+                return Ok(model);
+            }
+            return Ok(model);
+        }
+
+        [HttpPost("AddDichTTGiaCam")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        public async Task<IActionResult> AddDichTTGiaCam(Guid id, [FromBody] Dich model)
+        {
+            var farm = await _dbContext.TrangTraiGiaCam.FindAsync(id);
+            farm.IsDich = "1";
+            _dbContext.Dich.Add(model);
+            _dbContext.SaveChanges();
+            return Ok(model);
+        }
+
+        [HttpPost("KetThucDichTTGiaCam")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        public async Task<IActionResult> KetThucDichTTGiaCam(Guid id, [FromBody] TinhHinhDichBenhGiaCam model)
+        {
+            var dich = await _dbContext.Dich.Where(x => x.IdTrangTrai == id && x.IsDeleted != true).ToListAsync();
+            var lastFarmDich = dich.LastOrDefault();
+            lastFarmDich.IsDeleted = true;
+            var farm = _dbContext.TrangTraiGiaCam.Find(id);
+            farm.IsDich = "0";
+            model.ThoiDiemKetThuc = DateTime.Now;
+            await _dbContext.TinhHinhDichBenhGiaCam.AddAsync(model);
+            await _dbContext.SaveChangesAsync();
+            return Ok(model);
+        }
+
+        [HttpPut("AddOrEdit")]
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<IActionResult> AddOrEdit([FromBody] TrangTraiGiaCam model)
         {
@@ -199,7 +389,51 @@ namespace TRANGTRAICHANNUOI.Controllers
             }
         }
 
-        [HttpGet("Delete")]
+        [HttpDelete("XoaTiemPhongTTGiaCam/{id}")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        public async Task<IActionResult> XoaTiemPhongTTGiaCam(Guid id)
+        {
+            var map = await _dbContext.TiemPhongGiaCam.FindAsync(id);
+            //var map = _dbContext.CoSoGietMo.Where(w => w.Id == id);
+            if (id == Guid.Empty)
+            {
+                return BadRequest();
+            }
+            try
+            {
+                _dbContext.TiemPhongGiaCam.Remove(map);
+                await _dbContext.SaveChangesAsync();
+                return Ok();
+            }
+            catch (DbUpdateException)
+            {
+                return RedirectToAction(nameof(Delete), new { id = id, saveChangesError = true });
+            }
+        }
+
+        [HttpDelete("XoaTinhHinhDichTTGiaCam/{id}")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        public async Task<IActionResult> XoaTinhHinhDichTTGiaCam(Guid id)
+        {
+            var map = await _dbContext.TinhHinhDichBenhGiaCam.FindAsync(id);
+            //var map = _dbContext.CoSoGietMo.Where(w => w.Id == id);
+            if (id == Guid.Empty)
+            {
+                return BadRequest();
+            }
+            try
+            {
+                _dbContext.TinhHinhDichBenhGiaCam.Remove(map);
+                await _dbContext.SaveChangesAsync();
+                return Ok();
+            }
+            catch (DbUpdateException)
+            {
+                return RedirectToAction(nameof(Delete), new { id = id, saveChangesError = true });
+            }
+        }
+
+        [HttpDelete("Delete/{id}")]
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<IActionResult> Delete(Guid id)
         {
@@ -227,11 +461,11 @@ namespace TRANGTRAICHANNUOI.Controllers
             }
         }
 
-        [HttpGet("XoaTiemPhongTTGiaCam")]
+        [HttpDelete("DeleteVSTYTTGiaCam/{id}")]
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
-        public async Task<IActionResult> XoaTiemPhongTTGiaCam(Guid id)
+        public async Task<IActionResult> DeleteVSTYTTGiaCam(Guid id)
         {
-            var map = await _dbContext.TiemPhongGiaCam.FindAsync(id);
+            var map = await _dbContext.CNVSTYTTGiaCam.FindAsync(id);
             //var map = _dbContext.CoSoGietMo.Where(w => w.Id == id);
             if (id == Guid.Empty)
             {
@@ -239,7 +473,7 @@ namespace TRANGTRAICHANNUOI.Controllers
             }
             try
             {
-                _dbContext.TiemPhongGiaCam.Remove(map);
+                _dbContext.CNVSTYTTGiaCam.Remove(map);
                 await _dbContext.SaveChangesAsync();
                 return Ok();
             }
@@ -249,163 +483,8 @@ namespace TRANGTRAICHANNUOI.Controllers
             }
         }
 
-        [HttpGet("XoaTinhHinhDichTTGiaCam")]
-        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
-        public async Task<IActionResult> XoaTinhHinhDichTTGiaCam(Guid id)
-        {
-            var map = await _dbContext.TinhHinhDichBenhGiaCam.FindAsync(id);
-            //var map = _dbContext.CoSoGietMo.Where(w => w.Id == id);
-            if (id == Guid.Empty)
-            {
-                return BadRequest();
-            }
-            try
-            {
-                _dbContext.TinhHinhDichBenhGiaCam.Remove(map);
-                await _dbContext.SaveChangesAsync();
-                return Ok();
-            }
-            catch (DbUpdateException)
-            {
-                return RedirectToAction(nameof(Delete), new { id = id, saveChangesError = true });
-            }
-        }
 
-        [HttpGet("GetATDBTTGiaCam")]
-        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
-        public async Task<IActionResult> GetATDBTTGiaCam(Guid id)
-        {
-            if (id == Guid.Empty)
-                return BadRequest();
-            else
-            {
-                var trangTraiGiaCam = await _dbContext.CNATDBTTGiaCam.Where(x => x.IdTrangTraiGiaCam == id).ToListAsync();
-                if (trangTraiGiaCam == null)
-                {
-                    return NotFound();
-                }
-                return Ok(trangTraiGiaCam);
-            }
-        }
-
-        [HttpPost("AddATDBTTGiaCam")]
-        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
-        public async Task<IActionResult> AddATDBTTGiaCam([FromBody] CNATDBTTGiaCam model)
-        {
-            if (ModelState.IsValid)
-            {
-                await _dbContext.CNATDBTTGiaCam.AddAsync(model);
-                await _dbContext.SaveChangesAsync();
-                return Ok(model);
-            }
-            return BadRequest();
-        }
-
-        [HttpGet("DeleteATDBTTGiaCam")]
-        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
-        public async Task<IActionResult> DeleteATDBTTGiaCam(Guid id)
-        {
-            var map = await _dbContext.CNATDBTTGiaCam.FindAsync(id);
-            //var map = _dbContext.CoSoGietMo.Where(w => w.Id == id);
-            if (id == Guid.Empty)
-            {
-                return BadRequest();
-            }
-            try
-            {
-                _dbContext.CNATDBTTGiaCam.Remove(map);
-                await _dbContext.SaveChangesAsync();
-                return Ok();
-            }
-            catch (DbUpdateException)
-            {
-                return RedirectToAction(nameof(Delete), new { id = id, saveChangesError = true });
-            }
-        }
-
-        [HttpGet("GetDKCNTTGiaCam")]
-        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
-        public async Task<IActionResult> GetDKCNTTGiaCam(Guid id)
-        {
-            if (id == Guid.Empty)
-                return BadRequest();
-            else
-            {
-                var trangTraiGiaCam = await _dbContext.CNDKCNTTGiaCam.Where(x => x.IdTrangTraiGiaCam == id).ToListAsync();
-                if (trangTraiGiaCam == null)
-                {
-                    return NotFound();
-                }
-                return Ok(trangTraiGiaCam);
-            }
-        }
-
-        [HttpPost("AddDKCNTTGiaCam")]
-        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
-        public async Task<IActionResult> AddDKCNTTGiaCam([FromBody] CNDKCNTTGiaCam model)
-        {
-            if (ModelState.IsValid)
-            {
-                await _dbContext.CNDKCNTTGiaCam.AddAsync(model);
-                await _dbContext.SaveChangesAsync();
-                return Ok(model);
-            }
-            return View(model);
-        }
-
-        [HttpGet("DeleteDKCNTTGiaCam")]
-        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
-        public async Task<IActionResult> DeleteDKCNTTGiaCam(Guid id)
-        {
-            var map = await _dbContext.CNDKCNTTGiaCam.FindAsync(id);
-            //var map = _dbContext.CoSoGietMo.Where(w => w.Id == id);
-            if (id == Guid.Empty)
-            {
-                return BadRequest();
-            }
-            try
-            {
-                _dbContext.CNDKCNTTGiaCam.Remove(map);
-                await _dbContext.SaveChangesAsync();
-                return Ok();
-            }
-            catch (DbUpdateException)
-            {
-                return RedirectToAction(nameof(Delete), new { id = id, saveChangesError = true });
-            }
-        }
-
-        [HttpGet("GetVietGAHPTTGiaCam")]
-        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
-        public async Task<IActionResult> GetVietGAHPTTGiaCam(Guid id)
-        {
-            if (id == Guid.Empty)
-                return BadRequest();
-            else
-            {
-                var trangTraiGiaCam = await _dbContext.CNVietGAHPTTGiaCam.Where(x => x.IdTrangTraiGiaCam == id).ToListAsync();
-                if (trangTraiGiaCam == null)
-                {
-                    return NotFound();
-                }
-                return Ok(trangTraiGiaCam);
-            }
-        }
-
-        [HttpPost("AddVietGAHPTTGiaCam")]
-        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
-        public async Task<IActionResult> AddVietGAHPTTGiaCam([FromBody] CNVietGAHPTTGiaCam model)
-        {
-            if (ModelState.IsValid)
-            {
-                await _dbContext.CNVietGAHPTTGiaCam.AddAsync(model);
-                await _dbContext.SaveChangesAsync();
-                return Ok(model);
-            }
-            return BadRequest();
-        }
-
-        [HttpGet("DeleteVietGAHPTTGiaCam")]
+        [HttpDelete("DeleteVietGAHPTTGiaCam/{id}")]
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<IActionResult> DeleteVietGAHPTTGiaCam(Guid id)
         {
@@ -427,42 +506,11 @@ namespace TRANGTRAICHANNUOI.Controllers
             }
         }
 
-        [HttpGet("GetVSTPTTGiaCam/{id}")]
+        [HttpDelete("DeleteDKCNTTGiaCam/{id}")]
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
-        //VSTP
-        public async Task<IActionResult> GetVSTPTTGiaCam(Guid id)
+        public async Task<IActionResult> DeleteDKCNTTGiaCam(Guid id)
         {
-            if (id == Guid.Empty)
-                return BadRequest();
-            else
-            {
-                var trangTraiGiaCam = await _dbContext.CNVSTPTTGiaCam.Where(x => x.IdTrangTraiGiaCam == id).ToListAsync();
-                if (trangTraiGiaCam == null)
-                {
-                    return NotFound();
-                }
-                return Ok(trangTraiGiaCam);
-            }
-        }
-
-        [HttpPost("AddVSTPTTGiaCam")]
-        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
-        public async Task<IActionResult> AddVSTPTTGiaCam([FromBody] CNVSTPTTGiaCam model)
-        {
-            if (ModelState.IsValid)
-            {
-                await _dbContext.CNVSTPTTGiaCam.AddAsync(model);
-                await _dbContext.SaveChangesAsync();
-                return Ok(model);
-            }
-            return View(model);
-        }
-
-        [HttpGet("DeleteVSTPTTGiaCam/{id}")]
-        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
-        public async Task<IActionResult> DeleteVSTPTTGiaCam(Guid id)
-        {
-            var map = await _dbContext.CNVSTPTTGiaCam.FindAsync(id);
+            var map = await _dbContext.CNDKCNTTGiaCam.FindAsync(id);
             //var map = _dbContext.CoSoGietMo.Where(w => w.Id == id);
             if (id == Guid.Empty)
             {
@@ -470,7 +518,7 @@ namespace TRANGTRAICHANNUOI.Controllers
             }
             try
             {
-                _dbContext.CNVSTPTTGiaCam.Remove(map);
+                _dbContext.CNDKCNTTGiaCam.Remove(map);
                 await _dbContext.SaveChangesAsync();
                 return Ok();
             }
@@ -479,51 +527,27 @@ namespace TRANGTRAICHANNUOI.Controllers
                 return RedirectToAction(nameof(Delete), new { id = id, saveChangesError = true });
             }
         }
-        
-        [HttpPost("AddDichTTGiaCam/{id}")]
-        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
-        public async Task<IActionResult> AddDichTTGiaCam(Guid id, [FromBody] Dich model)
-        {
-            var farm = await _dbContext.TrangTraiGiaCam.FindAsync(id);
-            farm.IsDich = "1";
-            _dbContext.Dich.Add(model);
-            _dbContext.SaveChanges();
-            return Ok(farm);
-        }
 
-        [HttpGet("CheckDichTTGiaCam/{id}")]
+        [HttpDelete("DeleteATDBTTGiaCam/{id}")]
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
-        public async Task<IActionResult> CheckDichTTGiaCam(Guid id)
+        public async Task<IActionResult> DeleteATDBTTGiaCam(Guid id)
         {
+            var map = await _dbContext.CNATDBTTGiaCam.FindAsync(id);
+            //var map = _dbContext.CoSoGietMo.Where(w => w.Id == id);
             if (id == Guid.Empty)
-                return NotFound();
-            else
             {
-                var farm = await _dbContext.Dich.Where(x => x.IdTrangTrai == id && x.IsDeleted != true).ToListAsync();
-                if (farm == null)
-                {
-                    return NotFound();
-                }
-                var lastFarm = farm.LastOrDefault();
-                return Ok(lastFarm);
+                return BadRequest();
             }
-
-        }
-
-        [HttpPost("KetThucDich/{id}")]
-        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
-        public async Task<IActionResult> KetThucDich(Guid id, [FromBody] TinhHinhDichBenhGiaCam model)
-        {
-            var dich = await _dbContext.Dich.Where(x => x.IdTrangTrai == id && x.IsDeleted != true).ToListAsync();
-            var lastFarmDich = dich.LastOrDefault();
-            lastFarmDich.IsDeleted = true;
-            var farm = _dbContext.TrangTraiGiaCam.Find(id);
-            farm.IsDich = "0";
-            model.ThoiDiemKetThuc = DateTime.Now;
-            _dbContext.TinhHinhDichBenhGiaCam.Add(model);
-            await _dbContext.SaveChangesAsync();
-            return Ok(farm);
+            try
+            {
+                _dbContext.CNATDBTTGiaCam.Remove(map);
+                await _dbContext.SaveChangesAsync();
+                return Ok();
+            }
+            catch (DbUpdateException)
+            {
+                return RedirectToAction(nameof(Delete), new { id = id, saveChangesError = true });
+            }
         }
     }
-    
 }

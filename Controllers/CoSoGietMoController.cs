@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Data;
+using TRANGTRAICHANNUOI.DTO;
 
 
 namespace TRANGTRAICHANNUOI.Controllers
@@ -19,21 +20,46 @@ namespace TRANGTRAICHANNUOI.Controllers
         private TrangTraiContext _dbContext;
         private readonly TrangTraiService _trangTraiService;
         public CoSoGietMoController(ILogger<CoSoGietMoController> logger,
-            TrangTraiContext dbContext,
-            TrangTraiService trangTraiService)
+                                TrangTraiContext dbContext,
+                                TrangTraiService trangTraiService)
         {
-            
+
             _logger = logger;
             _dbContext = dbContext;
             _trangTraiService = trangTraiService;
         }
 
-        [HttpGet("LoadCoSoGietMo")]
-		[Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
-		public async Task<IEnumerable<object>> LoadCoSoGietMo()
+        [HttpGet]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        public async Task<IActionResult> Index(string search, int page = 1, int pageSize = 10)
         {
-            return await _dbContext.CoSoGietMo.Where(x=> x.IsDeleted != true)
-                .Select(x => new {
+            IQueryable<CoSoGietMo> query;
+            int skip = (page - 1) * pageSize;
+            if (search == "all")
+            { query = _dbContext.CoSoGietMo.Where(x => x.IsDeleted != true); }
+            else
+            {
+                query = _dbContext.CoSoGietMo.Where(x => x.TenTrai.ToLower().Contains(search.ToLower()));
+            }
+            int totalRecords = await query.CountAsync();
+            var finalQuery = await query.Skip(skip).Take(pageSize).ToListAsync();
+            var pagingModel = new PagingModel<CoSoGietMo>
+            {
+                Page = page,
+                PageSize = pageSize,
+                TotalItems = totalRecords,
+                Items = finalQuery
+            };
+            return Ok(pagingModel);
+        }
+
+        [HttpGet("LoadCoSoGietMo")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        public async Task<IEnumerable<object>> LoadCoSoGietMo()
+        {
+            return await _dbContext.CoSoGietMo.Where(x => x.IsDeleted != true)
+                .Select(x => new
+                {
                     x.Id,
                     x.TenTrai,
                     x.ChuTrangTrai,
@@ -48,8 +74,8 @@ namespace TRANGTRAICHANNUOI.Controllers
         }
 
         [HttpGet("ThongKeTrangTrai/{id}")]
-		[Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
-		public async Task<IActionResult> ThongKeTrangTrai(long id)
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        public async Task<IActionResult> ThongKeTrangTrai(long id)
         {
             if (id == null)
                 return BadRequest();
@@ -64,25 +90,9 @@ namespace TRANGTRAICHANNUOI.Controllers
             }
         }
 
-        [HttpPost("AddCoSoGietMo")]
-		[Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
-		public async Task<IActionResult> AddCoSoGietMo([FromBody] CoSoGietMo addMapRequest)
-        {
-            addMapRequest.LongitudeNumber = _trangTraiService.CoordinateToDecimal(addMapRequest.Longitude);
-            addMapRequest.LatitudeNumber = _trangTraiService.CoordinateToDecimal(addMapRequest.Latitude);
-            if (ModelState.IsValid)
-            {
-                await _dbContext.CoSoGietMo.AddAsync(addMapRequest);
-                await _dbContext.SaveChangesAsync();
-                return Ok(addMapRequest);
-            }
-            return View(addMapRequest);
-        }
-
-        //Get Info by Id
         [HttpGet("AddOrEdit/{id}")]
-		[Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
-		public async Task<IActionResult> AddOrEdit(Guid id)
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        public async Task<IActionResult> AddOrEdit(Guid id)
         {
             if (id == Guid.Empty)
                 return View(new CoSoGietMo());
@@ -97,9 +107,24 @@ namespace TRANGTRAICHANNUOI.Controllers
             }
         }
 
-        [HttpPost("AddOrEdit")]
-		[Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
-		public async Task<IActionResult> AddOrEdit([FromBody] CoSoGietMo model)
+        [HttpPost("AddCoSoGietMo")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        public async Task<IActionResult> AddCoSoGietMo([FromBody] CoSoGietMo addMapRequest)
+        {
+            addMapRequest.LongitudeNumber = _trangTraiService.CoordinateToDecimal(addMapRequest.Longitude);
+            addMapRequest.LatitudeNumber = _trangTraiService.CoordinateToDecimal(addMapRequest.Latitude);
+            if (ModelState.IsValid)
+            {
+                await _dbContext.CoSoGietMo.AddAsync(addMapRequest);
+                await _dbContext.SaveChangesAsync();
+                return Ok(addMapRequest);
+            }
+            return View(addMapRequest);
+        }
+
+        [HttpPut("AddOrEdit")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        public async Task<IActionResult> AddOrEdit([FromBody] CoSoGietMo model)
         {
             try
             {
@@ -122,9 +147,9 @@ namespace TRANGTRAICHANNUOI.Controllers
             }
         }
 
-        [HttpGet("Delete/{id}")]
-		[Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
-		public async Task<IActionResult> Delete(Guid id)
+        [HttpDelete("Delete/{id}")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        public async Task<IActionResult> Delete(Guid id)
         {
             var map = await _dbContext.CoSoGietMo.FindAsync(id);
             if (id == Guid.Empty)
@@ -143,7 +168,7 @@ namespace TRANGTRAICHANNUOI.Controllers
                     return Ok("Xóa trang trại thành công");
                 }
                 return BadRequest("Lỗi");
-                
+
             }
             catch (DbUpdateException)
             {

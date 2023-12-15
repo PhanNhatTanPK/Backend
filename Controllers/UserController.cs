@@ -14,16 +14,23 @@ namespace Backend.Controllers
 {
     [ApiController]
     [Route("[controller]")]
-    public class UserController : ControllerBase
+    public class UserController : Controller
     {
         private TrangTraiContext _dbContext;
         private readonly IUnitOfWork _unitOfWork;
         private readonly SignInManager<ApplicationUser> _signInManager;
         private IConfiguration _config;
-        private readonly Microsoft.AspNetCore.Identity.UserManager<ApplicationUser> _userManager;
+        private readonly UserManager<ApplicationUser> _userManager;
         private readonly UserService _userService;
+        private readonly RoleManager<IdentityRole> _roleManager;
 
-        public UserController(IUnitOfWork unitOfWork, SignInManager<ApplicationUser> signInManager, TrangTraiContext dbContext, Microsoft.AspNetCore.Identity.UserManager<ApplicationUser> userManager, IConfiguration config, UserService userService)
+        public UserController(IUnitOfWork unitOfWork, 
+                            SignInManager<ApplicationUser> signInManager, 
+                            TrangTraiContext dbContext,
+                            UserManager<ApplicationUser> userManager, 
+                            IConfiguration config, 
+                            UserService userService, 
+                            RoleManager<IdentityRole> roleManager)
         {
             _unitOfWork = unitOfWork;
             _signInManager = signInManager;
@@ -31,8 +38,35 @@ namespace Backend.Controllers
             _userManager = userManager;
             _config = config;
             _userService = userService;
+            _roleManager = roleManager;
         }
 
+        [HttpGet("GetRoles")]
+        public ICollection<IdentityRole> GetRoles()
+        {
+            return _dbContext.Roles.ToList();
+        }
+
+        [HttpGet("GetUserRole")]
+
+        public IActionResult GetUserRole()
+        {
+            var users = _userManager.Users.Select(c => new UserRole()
+            {
+                Id = c.Id,
+                Email = c.Email,
+                Role = string.Join(",", _userManager.GetRolesAsync(c).Result.ToArray())
+            }).ToList();
+
+            return Ok(users);
+        }
+
+        [HttpGet("GetAllUser")]
+        public async Task<IActionResult> GetAllUser()
+        {
+            var query = await _userManager.Users.ToListAsync();
+            return Ok(query);
+        }
 
         [HttpPost("Login")]
         public async Task<ActionResult> Login([FromBody] UserLoginRequest model)
@@ -94,10 +128,11 @@ namespace Backend.Controllers
                 PhoneNumber = model.PhoneNumber,
             };
             var result = await _userManager.CreateAsync(user, model.Password);
+
             if (result.Succeeded)
             {
                 var userId = await _userManager.GetUserIdAsync(user);
-
+                await _userManager.AddToRoleAsync(user, "Guest");
                 return Ok("Đăng ký tài khoản thành công.");
             }
             else
@@ -108,7 +143,6 @@ namespace Backend.Controllers
         }
 
         [HttpPost("ForgotPassword")]
-
         public async Task<ActionResult> ForgotPassword(string phoneNumber)
         {
             var user = _userManager.Users.FirstOrDefault(user => user.PhoneNumber == phoneNumber);
@@ -121,7 +155,7 @@ namespace Backend.Controllers
                 var tokenResetPass = await _userManager.GeneratePasswordResetTokenAsync(user);
 
                 string accountSid = "AC83f758deead35d6340437ea92e287852";
-                string authToken = "4754595bd737e195a8091a88e8eb3612";
+                string authToken = "6185ab941d0642fb8534677dd9be469a";
 
                 TwilioClient.Init(accountSid, authToken);
 
@@ -172,6 +206,115 @@ namespace Backend.Controllers
                 return BadRequest("Đổi mật khẩu thất bại");
             }
             return BadRequest("Tài khoản không tồn tại");
+        }
+
+        [HttpPost("CreateRole")]
+        public async Task<IActionResult> CreateRole(string roleName)
+        {
+            if (await _roleManager.RoleExistsAsync(roleName))
+            {
+                return BadRequest("Quyền này đã tồn tại");
+            }
+
+            var newRole = new IdentityRole(roleName);
+            var result = await _roleManager.CreateAsync(newRole);
+
+            if (result.Succeeded)
+            {
+                return Ok(newRole);
+            }
+
+            return BadRequest(result.Errors);
+        }
+
+        [HttpPut("UpdateRole")]
+        public async Task<IActionResult> UpdateRole(string id, string newRoleName)
+        {
+            var role = await _roleManager.FindByIdAsync(id);
+
+            if (role == null)
+            {
+                return NotFound("Không tìm thấy quyền này");
+            }
+
+            role.Name = newRoleName;
+            var result = await _roleManager.UpdateAsync(role);
+
+            if (result.Succeeded)
+            {
+                return Ok(role);
+            }
+
+            return BadRequest(result.Errors);
+        }
+
+        [HttpPut("UpdateUserRoles")]
+        public async Task<IActionResult> UpdateUserRoles(string id, List<string> roleNames)
+        {
+            var user = await _userManager.FindByIdAsync(id);
+
+            if (user == null)
+            {
+                return NotFound($"Không tìm thấy người dùng với Id '{id}'.");
+            }
+
+            var nonExistentRoles = roleNames.Except(await _roleManager.Roles.Select(r => r.Name).ToListAsync());
+            if (nonExistentRoles.Any())
+            {
+                return NotFound($"Các vai trò sau không tồn tại: {string.Join(", ", nonExistentRoles)}.");
+            }
+
+            var currentRoles = await _userManager.GetRolesAsync(user);
+            await _userManager.RemoveFromRolesAsync(user, currentRoles.ToArray());
+
+            await _userManager.AddToRolesAsync(user, roleNames);
+
+            return Ok(user);
+        }
+
+        [HttpPut("UpdateUserInfo")]
+        public async Task<IActionResult> UpdateUserInfo([FromBody] UpdateUser data)
+        {
+            if (ModelState.IsValid)
+            {
+                if (data.Id != string.Empty)
+                {
+                    var user = await _userManager.FindByIdAsync(data.Id);
+                    if (user != null)
+                    {
+                        user.UserName = data.Email;
+                        user.Email = data.Email;
+                        user.NormalizedUserName = data.Email.ToUpper();
+                        user.DistrictId = data.DistrictId;
+                        user.FirstName = data.FirstName;
+                        user.LastName = data.LastName;
+                        user.NormalizedEmail = data.Email.ToUpper();
+                        await _userManager.UpdateAsync(user);
+                    }
+                    return Ok(user);
+                }
+            }
+            return BadRequest();
+        }
+
+        [HttpDelete("DeleteRole")]
+        public async Task<IActionResult> DeleteRole(string id)
+        {
+            var role = await _roleManager.FindByIdAsync(id);
+
+            if (role == null)
+            {
+                return NotFound("Không tìm thấy quyền này");
+            }
+
+            var result = await _roleManager.DeleteAsync(role);
+
+            if (result.Succeeded)
+            {
+                return Ok($"Xóa quyền thành công");
+            }
+
+            return BadRequest(result.Errors);
         }
 
         [HttpDelete("DeleteUser")]

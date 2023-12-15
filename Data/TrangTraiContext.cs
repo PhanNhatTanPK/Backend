@@ -39,10 +39,10 @@ public class TrangTraiContext : IdentityDbContext<ApplicationUser, IdentityRole,
     public DbSet<CNVietGAHPTTGiaCam> CNVietGAHPTTGiaCam { get; set; }
     public DbSet<CNVietGAHPTTGiaSuc> CNVietGAHPTTGiaSuc { get; set; }
     public DbSet<CNVietGAHPTTHeo> CNVietGAHPTTHeo { get; set; }
-    public DbSet<CNVSTPTTGiaCam> CNVSTPTTGiaCam { get; set; }
-    public DbSet<CNVSTPTTHeo> CNVSTPTTHeo { get; set; }
+    public DbSet<CNVSTYTTGiaCam> CNVSTYTTGiaCam { get; set; }
+    public DbSet<CNVSTYTTHeo> CNVSTYTTHeo { get; set; }
     public DbSet<SaveBufferPandemic> SaveBufferPandemic { get; set; }
-    public DbSet<CNVSTPTTGiaSuc> CNVSTPTTGiaSuc { get; set; }
+    public DbSet<CNVSTYTTGiaSuc> CNVSTYTTGiaSuc { get; set; }
     public DbSet<TrangTraiTheoHuyen> TrangTraiTheoHuyen { get; set; }
     public DbSet<Dich> Dich { get; set; }
 public static object Id { get; internal set; }

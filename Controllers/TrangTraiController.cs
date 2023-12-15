@@ -10,129 +10,45 @@ using Backend.Models;
 using Backend.DTO;
 
 namespace TRANGTRAICHANNUOI.Controllers
-{   
+{
     [ApiController]
     [Route("[controller]")]
     [Authorize]
-    public class TrangTraiController : ControllerBase
+
+    public class TrangTraiController : Controller
     {
         private readonly ILogger<TrangTraiController> _logger;
         private TrangTraiContext _dbContext;
-        public TrangTraiController(ILogger<TrangTraiController> logger,
-            TrangTraiContext dbContext)
+        public TrangTraiController(ILogger<TrangTraiController> logger, TrangTraiContext dbContext)
         {
             _logger = logger;
             _dbContext = dbContext;
         }
 
-        private string ConvertToUnSign(string input)
+        [HttpGet("Huyen")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        public async Task<IEnumerable<District>> Huyen()
         {
-            input = input.Trim();
-            for (int i = 0x20; i < 0x30; i++)
-            {
-                input = input.Replace(((char)i).ToString(), " ");
-            }
-            Regex regex = new Regex(@"\p{IsCombiningDiacriticalMarks}+");
-            string str = input.Normalize(NormalizationForm.FormD);
-            string str2 = regex.Replace(str, string.Empty).Replace('đ', 'd').Replace('Đ', 'D');
-            while (str2.IndexOf("?") >= 0)
-            {
-                str2 = str2.Remove(str2.IndexOf("?"), 1);
-            }
-            return str2;
+            return await _dbContext.District.ToListAsync();
         }
 
-        [HttpPost("SearchMarker/{searchString}")]
-        public async Task<IActionResult> SearchMarker(string searchString)
+        [HttpGet("GetNumberForEachFarmType")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        public IActionResult GetNumberForEachFarmType()
         {
-            if (string.IsNullOrEmpty(searchString))
+            var tong = new ThongKeTTDashboard
             {
-                return BadRequest("Không để trống");
-            }
-
-            List<object> searchResults = new List<object>();
-
-            var trangTraiHeoResults = _dbContext.TrangTraiHeo.Where(delegate (TrangTraiHeo c)
-            {
-                if (ConvertToUnSign(c.TenTrai).IndexOf(searchString, StringComparison.CurrentCultureIgnoreCase) >= 0)
-                    return true;
-                else
-                    return false;
-            }).Select(x => new {
-                x.TenTrai,
-                x.LongitudeNumber,
-                x.LatitudeNumber
-            }).AsQueryable();
-
-            searchResults.AddRange(trangTraiHeoResults.ToList());
-
-            var trangTraiDaiGiaSucResults = _dbContext.TrangTraiDaiGiaSuc.Where(delegate (TrangTraiDaiGiaSuc c)
-            {
-                if (ConvertToUnSign(c.TenTrai).IndexOf(searchString, StringComparison.CurrentCultureIgnoreCase) >= 0)
-                    return true;
-                else
-                    return false;
-            }).Select(x => new {
-                x.TenTrai,
-                x.LongitudeNumber,
-                x.LatitudeNumber
-            }).AsQueryable();
-
-            searchResults.AddRange(trangTraiDaiGiaSucResults.ToList());
-
-            var trangTraiGiaCamResults = _dbContext.TrangTraiGiaCam.Where(delegate (TrangTraiGiaCam c)
-            {
-                if (ConvertToUnSign(c.TenTrai).IndexOf(searchString, StringComparison.CurrentCultureIgnoreCase) >= 0)
-                    return true;
-                else
-                    return false;
-            }).Select(x => new {
-                x.TenTrai,
-                x.LongitudeNumber,
-                x.LatitudeNumber
-            }).AsQueryable();
-
-            searchResults.AddRange(trangTraiGiaCamResults.ToList());
-
-            var coSoGietMoResults = _dbContext.CoSoGietMo.Where(delegate (CoSoGietMo c)
-            {
-                if (ConvertToUnSign(c.TenTrai).IndexOf(searchString, StringComparison.CurrentCultureIgnoreCase) >= 0)
-                    return true;
-                else
-                    return false;
-            }).Select(x => new {
-                x.TenTrai,
-                x.LongitudeNumber,
-                x.LatitudeNumber
-            }).AsQueryable();
-
-            searchResults.AddRange(coSoGietMoResults.ToList());
-
-            return Ok(searchResults);
-        }
-
-        [HttpGet("Delete/{id}")]
-        public async Task<IActionResult> Delete(Guid id)
-        {
-            var map = await _dbContext.CoSoGietMo.FindAsync(id);
-            if (id == Guid.Empty)
-            {
-                return BadRequest();
-            }
-            try
-            {
-                map.IsDeleted = true;
-                _dbContext.CoSoGietMo.Update(map);
-                await _dbContext.SaveChangesAsync();
-                return RedirectToAction(nameof(Index));
-            }
-            catch (DbUpdateException)
-            {
-                return RedirectToAction(nameof(Delete), new { id = id, saveChangesError = true });
-            }
+                TongTraiHeo = _dbContext.TrangTraiHeo.Where(x => x.IsDeleted != true).Count(),
+                TongTraiGiaSuc = _dbContext.TrangTraiDaiGiaSuc.Where(x => x.IsDeleted != true).Count(),
+                TongCoSoGietMo = _dbContext.CoSoGietMo.Where(x => x.IsDeleted != true).Count(),
+                TongTraiGiaCam = _dbContext.TrangTraiGiaCam.Where(x => x.IsDeleted != true).Count(),
+                TongTrangTraiDich = _dbContext.Dich.Where(x => x.IsDeleted != true).Count(),
+            };
+            return Ok(tong);
         }
 
         [HttpGet("GetAllTrangTrai")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<IActionResult> GetAllTrangTrai()
         {
             var listTraiHeo = _dbContext.TrangTraiHeo.ToList();
@@ -210,7 +126,8 @@ namespace TRANGTRAICHANNUOI.Controllers
             return Ok(genericClass);
         }
 
-         [HttpGet("GetAllPandemicFarm")]
+        [HttpGet("GetAllPandemicFarm")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public List<DanhSachTTDich> GetAllPandemicFarm()
         {
             var unixEpoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
@@ -269,30 +186,13 @@ namespace TRANGTRAICHANNUOI.Controllers
 
             return result.ToList();
         }
-        
+
         [HttpGet("GetCurrentPandemicFarm")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public IActionResult GetCurrentPandemicFarm()
         {
             var listTraiHeo = from tt in _dbContext.TrangTraiHeo
-                               join d in _dbContext.Dich on tt.Id equals d.IdTrangTrai
-                               where tt.IsDich == "1" && tt.IsDeleted != true && d.IsDeleted != true
-                               select new
-                               {
-                                  tt.Id,
-                                   tt.TenTrai,
-                                   tt.ChuTrangTrai,
-                                 tt.DiaChi,
-                                   tt.DienThoai,
-                                    tt.LongitudeNumber,
-                                   tt.LatitudeNumber,
-                                   tt.IdLoaiTrangTrai,
-                                  tt.IsDich,
-                                   d.ThoiGianBatDau,
-                                   d.TenBenhNghiNgo,
-                                   d.SoGiaSucBenh
-                               };
-            var listTraiGiaSuc = from tt in _dbContext.TrangTraiDaiGiaSuc
-                                 join d in _dbContext.Dich on tt.Id equals d.IdTrangTrai
+                              join d in _dbContext.Dich on tt.Id equals d.IdTrangTrai
                               where tt.IsDich == "1" && tt.IsDeleted != true && d.IsDeleted != true
                               select new
                               {
@@ -307,8 +207,26 @@ namespace TRANGTRAICHANNUOI.Controllers
                                   tt.IsDich,
                                   d.ThoiGianBatDau,
                                   d.TenBenhNghiNgo,
-                                  d.SoGiaSucBenh
+                                  d.SoBenh
                               };
+            var listTraiGiaSuc = from tt in _dbContext.TrangTraiDaiGiaSuc
+                                 join d in _dbContext.Dich on tt.Id equals d.IdTrangTrai
+                                 where tt.IsDich == "1" && tt.IsDeleted != true && d.IsDeleted != true
+                                 select new
+                                 {
+                                     tt.Id,
+                                     tt.TenTrai,
+                                     tt.ChuTrangTrai,
+                                     tt.DiaChi,
+                                     tt.DienThoai,
+                                     tt.LongitudeNumber,
+                                     tt.LatitudeNumber,
+                                     tt.IdLoaiTrangTrai,
+                                     tt.IsDich,
+                                     d.ThoiGianBatDau,
+                                     d.TenBenhNghiNgo,
+                                     d.SoBenh
+                                 };
             var listCoSoGietMo = from tt in _dbContext.CoSoGietMo
                                  join d in _dbContext.Dich on tt.Id equals d.IdTrangTrai
                                  where tt.IsDich == "1" && tt.IsDeleted != true && d.IsDeleted != true
@@ -325,32 +243,33 @@ namespace TRANGTRAICHANNUOI.Controllers
                                      tt.IsDich,
                                      d.ThoiGianBatDau,
                                      d.TenBenhNghiNgo,
-                                     d.SoGiaSucBenh
+                                     d.SoBenh
                                  };
             var listTrangTraiGiaCam = from tt in _dbContext.TrangTraiGiaCam
                                       join d in _dbContext.Dich on tt.Id equals d.IdTrangTrai
-                                 where tt.IsDich == "1" && tt.IsDeleted != true && d.IsDeleted != true
-                                 select new
-                                 {
-                                     tt.Id,
-                                     tt.TenTrai,
-                                     tt.ChuTrangTrai,
-                                     tt.DiaChi,
-                                     tt.DienThoai,
-                                     tt.LongitudeNumber,
-                                     tt.LatitudeNumber,
-                                     tt.IdLoaiTrangTrai,
-                                     tt.IsDich,
-                                     d.ThoiGianBatDau,
-                                     d.TenBenhNghiNgo,
-                                     d.SoGiaSucBenh
-                                 };
+                                      where tt.IsDich == "1" && tt.IsDeleted != true && d.IsDeleted != true
+                                      select new
+                                      {
+                                          tt.Id,
+                                          tt.TenTrai,
+                                          tt.ChuTrangTrai,
+                                          tt.DiaChi,
+                                          tt.DienThoai,
+                                          tt.LongitudeNumber,
+                                          tt.LatitudeNumber,
+                                          tt.IdLoaiTrangTrai,
+                                          tt.IsDich,
+                                          d.ThoiGianBatDau,
+                                          d.TenBenhNghiNgo,
+                                          d.SoBenh
+                                      };
             var result = listTraiHeo.Concat(listTraiGiaSuc).Concat(listCoSoGietMo).Concat(listTrangTraiGiaCam);
-            
+
             return Ok(result.ToList());
         }
 
         [HttpGet("BaoCaoCoCauTTHeo")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<IActionResult> BaoCaoCoCauTTHeo()
         {
             var results = from d in _dbContext.District
@@ -374,6 +293,7 @@ namespace TRANGTRAICHANNUOI.Controllers
         }
 
         [HttpGet("BaoCaoCoCauTTGiaSuc")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<IActionResult> BaoCaoCoCauTTGiaSuc()
         {
             var results = from d in _dbContext.District
@@ -409,6 +329,7 @@ namespace TRANGTRAICHANNUOI.Controllers
         }
 
         [HttpGet("BaoCaoCoCauTTGiaCam")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<IActionResult> BaoCaoCoCauTTGiaCam()
         {
             var results = from d in _dbContext.District
@@ -436,33 +357,35 @@ namespace TRANGTRAICHANNUOI.Controllers
         }
 
         [HttpGet("BaoCaoATDBTTHeo")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<IActionResult> BaoCaoATDBTTHeo()
         {
             var query = from d in _dbContext.District
                         join t in _dbContext.TrangTraiHeo.Where(x => x.IsDeleted != true) on d.Id equals t.DistrictId into tGroup
                         from t in tGroup.DefaultIfEmpty()
-                        join cnvstpt in _dbContext.CNATDBTTHeo on t.Id equals cnvstpt.IdTrangTraiHeo into cnvstptGroup
-                        from cnvstpt in cnvstptGroup.DefaultIfEmpty()
-                        group new { t, cnvstpt } by new { d.DistrictName } into g
+                        join cnvstyt in _dbContext.CNATDBTTHeo on t.Id equals cnvstyt.IdTrangTraiHeo into cnvstytGroup
+                        from cnvstyt in cnvstytGroup.DefaultIfEmpty()
+                        group new { t, cnvstyt } by new { d.DistrictName } into g
                         select new BaoCaoATDB
                         {
                             TenHuyen = g.Key.DistrictName,
                             SoLuongTrangTraiHeo = g.Count(x => x.t != null),
-                            SoLuongTrangTraiATDBHeo = g.Count(x => x.t != null && x.cnvstpt != null),
+                            SoLuongTrangTraiATDBHeo = g.Count(x => x.t != null && x.cnvstyt != null),
                         };
             var result = query.ToList();
             return Ok(result);
         }
 
         [HttpGet("BaoCaoATDBTTGiaSuc")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<IActionResult> BaoCaoATDBTTGiaSuc()
         {
             var query = from d in _dbContext.District
                         join t in _dbContext.TrangTraiDaiGiaSuc.Where(x => x.IsDeleted != true) on d.Id equals t.DistrictId into tGroup
                         from t in tGroup.DefaultIfEmpty()
-                        join cnvstpt in _dbContext.CNATDBTTGiaSuc on t.Id equals cnvstpt.IdTrangTraiDaiGiaSuc into cnvstptGroup
-                        from cnvstpt in cnvstptGroup.DefaultIfEmpty()
-                        group new { t, cnvstpt } by new { d.DistrictName, t.IdLoaiGiaSuc } into g
+                        join cnvstyt in _dbContext.CNATDBTTGiaSuc on t.Id equals cnvstyt.IdTrangTraiDaiGiaSuc into cnvstytGroup
+                        from cnvstyt in cnvstytGroup.DefaultIfEmpty()
+                        group new { t, cnvstyt } by new { d.DistrictName, t.IdLoaiGiaSuc } into g
                         select new BaoCaoATDB
                         {
                             TenHuyen = g.Key.DistrictName,
@@ -471,73 +394,76 @@ namespace TRANGTRAICHANNUOI.Controllers
                             SoLuongTrangTraiTrau = g.Count(x => x.t != null && x.t.IdLoaiGiaSuc == 3),
                             SoLuongTrangTraiNgua = g.Count(x => x.t != null && x.t.IdLoaiGiaSuc == 4),
                             SoLuongTrangTraiCuu = g.Count(x => x.t != null && x.t.IdLoaiGiaSuc == 5),
-                            SoLuongTrangTraiATDBBo = g.Count(x => x.t != null && x.t.IdLoaiGiaSuc == 1 && x.cnvstpt != null),
-                            SoLuongTrangTraiATDBDe = g.Count(x => x.t != null && x.t.IdLoaiGiaSuc == 2 && x.cnvstpt != null),
-                            SoLuongTrangTraiATDBTrau = g.Count(x => x.t != null && x.t.IdLoaiGiaSuc == 3 && x.cnvstpt != null),
-                            SoLuongTrangTraiATDBNgua = g.Count(x => x.t != null && x.t.IdLoaiGiaSuc == 2 && x.cnvstpt != null),
-                            SoLuongTrangTraiATDBCuu = g.Count(x => x.t != null && x.t.IdLoaiGiaSuc == 3 && x.cnvstpt != null),
+                            SoLuongTrangTraiATDBBo = g.Count(x => x.t != null && x.t.IdLoaiGiaSuc == 1 && x.cnvstyt != null),
+                            SoLuongTrangTraiATDBDe = g.Count(x => x.t != null && x.t.IdLoaiGiaSuc == 2 && x.cnvstyt != null),
+                            SoLuongTrangTraiATDBTrau = g.Count(x => x.t != null && x.t.IdLoaiGiaSuc == 3 && x.cnvstyt != null),
+                            SoLuongTrangTraiATDBNgua = g.Count(x => x.t != null && x.t.IdLoaiGiaSuc == 2 && x.cnvstyt != null),
+                            SoLuongTrangTraiATDBCuu = g.Count(x => x.t != null && x.t.IdLoaiGiaSuc == 3 && x.cnvstyt != null),
                         };
             var result = query.ToList();
             return Ok(result);
         }
 
         [HttpGet("BaoCaoATDBTTGiaCam")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<IActionResult> BaoCaoATDBTTGiaCam()
         {
             var query = from d in _dbContext.District
                         join t in _dbContext.TrangTraiGiaCam.Where(x => x.IsDeleted != true) on d.Id equals t.DistrictId into tGroup
                         from t in tGroup.DefaultIfEmpty()
-                        join cnvstpt in _dbContext.CNVSTPTTGiaCam on t.Id equals cnvstpt.IdTrangTraiGiaCam into cnvstptGroup
-                        from cnvstpt in cnvstptGroup.DefaultIfEmpty()
-                        group new { t, cnvstpt } by new { d.DistrictName, t.IdLoaiGiaCam } into g
+                        join cnvstyt in _dbContext.CNVSTYTTGiaCam on t.Id equals cnvstyt.IdTrangTraiGiaCam into cnvstytGroup
+                        from cnvstyt in cnvstytGroup.DefaultIfEmpty()
+                        group new { t, cnvstyt } by new { d.DistrictName, t.IdLoaiGiaCam } into g
                         select new BaoCaoATDB
                         {
                             TenHuyen = g.Key.DistrictName,
                             SoLuongTrangTraiGa = g.Count(x => x.t != null && x.t.IdLoaiGiaCam == 1),
                             SoLuongTrangTraiVit = g.Count(x => x.t != null && x.t.IdLoaiGiaCam == 2),
                             SoLuongTrangTraiCut = g.Count(x => x.t != null && x.t.IdLoaiGiaCam == 3),
-                            SoLuongTrangTraiATDBGa = g.Count(x => x.t != null && x.t.IdLoaiGiaCam == 1 && x.cnvstpt != null),
-                            SoLuongTrangTraiATDBVit = g.Count(x => x.t != null && x.t.IdLoaiGiaCam == 2 && x.cnvstpt != null),
-                            SoLuongTrangTraiATDBCut = g.Count(x => x.t != null && x.t.IdLoaiGiaCam == 3 && x.cnvstpt != null),
+                            SoLuongTrangTraiATDBGa = g.Count(x => x.t != null && x.t.IdLoaiGiaCam == 1 && x.cnvstyt != null),
+                            SoLuongTrangTraiATDBVit = g.Count(x => x.t != null && x.t.IdLoaiGiaCam == 2 && x.cnvstyt != null),
+                            SoLuongTrangTraiATDBCut = g.Count(x => x.t != null && x.t.IdLoaiGiaCam == 3 && x.cnvstyt != null),
                         };
             var result = query.ToList();
             return Ok(result);
         }
 
-		[HttpGet("BaoCaoVSTYTTHeo")]
-		public async Task<IActionResult> BaoCaoVSTYTTHeo()
-		{
-			var distinctIds = _dbContext.CNVSTPTTHeo.Select(x => x.IdTrangTraiHeo).Distinct();
+        [HttpGet("BaoCaoVSTYTTHeo")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        public async Task<IActionResult> BaoCaoVSTYTTHeo()
+        {
+            var distinctIds = _dbContext.CNVSTYTTHeo.Select(x => x.IdTrangTraiHeo).Distinct();
 
-			var query = from d in _dbContext.District
-						join t in _dbContext.TrangTraiHeo.Where(x => x.IsDeleted != true) on d.Id equals t.DistrictId into tGroup
-						from t in tGroup.DefaultIfEmpty()
-						join cnvstpt in distinctIds on t.Id equals cnvstpt into cnvstptGroup
-						from cnvstpt in cnvstptGroup.DefaultIfEmpty()
-						group new { t, cnvstpt } by new { d.DistrictName } into g
-						select new BaoCaoVSTY
-						{
-							TenHuyen = g.Key.DistrictName,
-							SoLuongTrangTraiHeo = g.Count(x => x.t != null),
-							SoLuongTrangTraiVSTYHeo = g.Sum(x => x.cnvstpt != null ? 1 : 0),
-						};
+            var query = from d in _dbContext.District
+                        join t in _dbContext.TrangTraiHeo.Where(x => x.IsDeleted != true) on d.Id equals t.DistrictId into tGroup
+                        from t in tGroup.DefaultIfEmpty()
+                        join cnvstyt in distinctIds on t.Id equals cnvstyt into cnvstytGroup
+                        from cnvstyt in cnvstytGroup.DefaultIfEmpty()
+                        group new { t, cnvstyt } by new { d.DistrictName } into g
+                        select new BaoCaoVSTY
+                        {
+                            TenHuyen = g.Key.DistrictName,
+                            SoLuongTrangTraiHeo = g.Count(x => x.t != null),
+                            SoLuongTrangTraiVSTYHeo = g.Sum(x => x.cnvstyt != null ? 1 : 0),
+                        };
 
-			var result = query.ToList();
-			
-				return Ok(result);
-		}
+            var result = query.ToList();
 
-		[HttpGet("BaoCaoVSTYTTGiaSuc")]
+            return Ok(result);
+        }
+
+        [HttpGet("BaoCaoVSTYTTGiaSuc")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<IActionResult> BaoCaoVSTYTTGiaSuc()
         {
-			var distinctIds = _dbContext.CNVSTPTTGiaSuc.Select(x => x.IdTrangTraiDaiGiaSuc).Distinct();
+            var distinctIds = _dbContext.CNVSTYTTGiaSuc.Select(x => x.IdTrangTraiDaiGiaSuc).Distinct();
 
-			var query = from d in _dbContext.District
-						join t in _dbContext.TrangTraiDaiGiaSuc.Where(x => x.IsDeleted != true) on d.Id equals t.DistrictId into tGroup
-						from t in tGroup.DefaultIfEmpty()
-						join cnvstpt in distinctIds on t.Id equals cnvstpt into cnvstptGroup
-						from cnvstpt in cnvstptGroup.DefaultIfEmpty()
-						group new { t, cnvstpt } by new { d.DistrictName, t.IdLoaiGiaSuc } into g
+            var query = from d in _dbContext.District
+                        join t in _dbContext.TrangTraiDaiGiaSuc.Where(x => x.IsDeleted != true) on d.Id equals t.DistrictId into tGroup
+                        from t in tGroup.DefaultIfEmpty()
+                        join cnvstyt in distinctIds on t.Id equals cnvstyt into cnvstytGroup
+                        from cnvstyt in cnvstytGroup.DefaultIfEmpty()
+                        group new { t, cnvstyt } by new { d.DistrictName, t.IdLoaiGiaSuc } into g
                         select new BaoCaoVSTY
                         {
                             TenHuyen = g.Key.DistrictName,
@@ -546,44 +472,46 @@ namespace TRANGTRAICHANNUOI.Controllers
                             SoLuongTrangTraiTrau = g.Count(x => x.t != null && x.t.IdLoaiGiaSuc == 3),
                             SoLuongTrangTraiNgua = g.Count(x => x.t != null && x.t.IdLoaiGiaSuc == 4),
                             SoLuongTrangTraiCuu = g.Count(x => x.t != null && x.t.IdLoaiGiaSuc == 5),
-                            SoLuongTrangTraiVSTYBo = g.Count(x => x.t != null && x.t.IdLoaiGiaSuc == 1 && x.cnvstpt != null),
-                            SoLuongTrangTraiVSTYDe = g.Count(x => x.t != null && x.t.IdLoaiGiaSuc == 2 && x.cnvstpt != null),
-                            SoLuongTrangTraiVSTYTrau = g.Count(x => x.t != null && x.t.IdLoaiGiaSuc == 3 && x.cnvstpt != null),
-                            SoLuongTrangTraiVSTYNgua = g.Count(x => x.t != null && x.t.IdLoaiGiaSuc == 2 && x.cnvstpt != null),
-                            SoLuongTrangTraiVSTYCuu = g.Count(x => x.t != null && x.t.IdLoaiGiaSuc == 3 && x.cnvstpt != null),
+                            SoLuongTrangTraiVSTYBo = g.Count(x => x.t != null && x.t.IdLoaiGiaSuc == 1 && x.cnvstyt != null),
+                            SoLuongTrangTraiVSTYDe = g.Count(x => x.t != null && x.t.IdLoaiGiaSuc == 2 && x.cnvstyt != null),
+                            SoLuongTrangTraiVSTYTrau = g.Count(x => x.t != null && x.t.IdLoaiGiaSuc == 3 && x.cnvstyt != null),
+                            SoLuongTrangTraiVSTYNgua = g.Count(x => x.t != null && x.t.IdLoaiGiaSuc == 2 && x.cnvstyt != null),
+                            SoLuongTrangTraiVSTYCuu = g.Count(x => x.t != null && x.t.IdLoaiGiaSuc == 3 && x.cnvstyt != null),
                         };
             var result = query.ToList();
-				return Ok(result);
-		}
+            return Ok(result);
+        }
 
         [HttpGet("BaoCaoVSTYTTGiaCam")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<IActionResult> BaoCaoVSTYTTGiaCam()
         {
 
-			var distinctIds = _dbContext.CNVSTPTTGiaCam.Select(x => x.IdTrangTraiGiaCam).Distinct();
+            var distinctIds = _dbContext.CNVSTYTTGiaCam.Select(x => x.IdTrangTraiGiaCam).Distinct();
 
-			var query = from d in _dbContext.District
-						join t in _dbContext.TrangTraiGiaCam.Where(x => x.IsDeleted != true) on d.Id equals t.DistrictId into tGroup
-						from t in tGroup.DefaultIfEmpty()
-						join cnvstpt in distinctIds on t.Id equals cnvstpt into cnvstptGroup
-						from cnvstpt in cnvstptGroup.DefaultIfEmpty()
-						group new { t, cnvstpt } by new { d.DistrictName, t.IdLoaiGiaCam } into g
+            var query = from d in _dbContext.District
+                        join t in _dbContext.TrangTraiGiaCam.Where(x => x.IsDeleted != true) on d.Id equals t.DistrictId into tGroup
+                        from t in tGroup.DefaultIfEmpty()
+                        join cnvstyt in distinctIds on t.Id equals cnvstyt into cnvstytGroup
+                        from cnvstyt in cnvstytGroup.DefaultIfEmpty()
+                        group new { t, cnvstyt } by new { d.DistrictName, t.IdLoaiGiaCam } into g
                         select new BaoCaoVSTY
                         {
                             TenHuyen = g.Key.DistrictName,
                             SoLuongTrangTraiGa = g.Count(x => x.t != null && x.t.IdLoaiGiaCam == 1),
                             SoLuongTrangTraiVit = g.Count(x => x.t != null && x.t.IdLoaiGiaCam == 2),
                             SoLuongTrangTraiCut = g.Count(x => x.t != null && x.t.IdLoaiGiaCam == 3),
-                            SoLuongTrangTraiVSTYGa = g.Count(x => x.t != null && x.t.IdLoaiGiaCam == 1 && x.cnvstpt != null),
-                            SoLuongTrangTraiVSTYVit = g.Count(x => x.t != null && x.t.IdLoaiGiaCam == 2 && x.cnvstpt != null),
-                            SoLuongTrangTraiVSTYCut = g.Count(x => x.t != null && x.t.IdLoaiGiaCam == 3 && x.cnvstpt != null),
+                            SoLuongTrangTraiVSTYGa = g.Count(x => x.t != null && x.t.IdLoaiGiaCam == 1 && x.cnvstyt != null),
+                            SoLuongTrangTraiVSTYVit = g.Count(x => x.t != null && x.t.IdLoaiGiaCam == 2 && x.cnvstyt != null),
+                            SoLuongTrangTraiVSTYCut = g.Count(x => x.t != null && x.t.IdLoaiGiaCam == 3 && x.cnvstyt != null),
                         };
             var result = query.ToList();
-		
-				return Ok(result);
-		}
+
+            return Ok(result);
+        }
 
         [HttpGet("BaoCaoSoHuuTTHeo")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<IActionResult> BaoCaoSoHuuTTHeo()
         {
             var farmStatistics = _dbContext.TrangTraiHeo.Where(x => x.IsDeleted != true)
@@ -601,6 +529,7 @@ namespace TRANGTRAICHANNUOI.Controllers
         }
 
         [HttpGet("BaoCaoSoHuuTTGiaSuc")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<IActionResult> BaoCaoSoHuuTTGiaSuc()
         {
             var farmStatistics = _dbContext.TrangTraiDaiGiaSuc.Where(x => x.IsDeleted != true)
@@ -608,32 +537,33 @@ namespace TRANGTRAICHANNUOI.Controllers
                     .GroupBy(td => td.District.DistrictName, td => td.TrangTrai, (key, g) => new BaoCaoSoHuu
                     {
                         TenHuyen = key,
-                        TongTraiBoTN = g.Count(t => t.HinhThucNuoi == "0" && t.IdLoaiGiaSuc == 1),
-                        TongTraiDeTN = g.Count(t => t.HinhThucNuoi == "0" && t.IdLoaiGiaSuc == 2),
-                        TongTraiTrauTN = g.Count(t => t.HinhThucNuoi == "0" && t.IdLoaiGiaSuc == 3),
-                        TongTraiNguaTN = g.Count(t => t.HinhThucNuoi == "0" && t.IdLoaiGiaSuc == 4),
-                        TongTraiCuuTN = g.Count(t => t.HinhThucNuoi == "0" && t.IdLoaiGiaSuc == 5),
-                        TongTN = g.Count(t => t.HinhThucNuoi == "0"),
-                        TongTraiBoCT = g.Count(t => t.HinhThucNuoi == "2" && t.IdLoaiGiaSuc == 1),
-                        TongTraiDeCT = g.Count(t => t.HinhThucNuoi == "2" && t.IdLoaiGiaSuc == 2),
-                        TongTraiTrauCT = g.Count(t => t.HinhThucNuoi == "2" && t.IdLoaiGiaSuc == 3),
-                        TongTraiNguaCT = g.Count(t => t.HinhThucNuoi == "2" && t.IdLoaiGiaSuc == 4),
-                        TongTraiCuuCT = g.Count(t => t.HinhThucNuoi == "2" && t.IdLoaiGiaSuc == 5),
-                        TongCT = g.Count(t => t.HinhThucNuoi == "2"),
-                        TongTraiBoGC = g.Count(t => t.HinhThucNuoi == "1" && t.IdLoaiGiaSuc == 1),
-                        TongTraiDeGC = g.Count(t => t.HinhThucNuoi == "1" && t.IdLoaiGiaSuc == 2),
-                        TongTraiTrauGC = g.Count(t => t.HinhThucNuoi == "1" && t.IdLoaiGiaSuc == 3),
-                        TongTraiNguaGC = g.Count(t => t.HinhThucNuoi == "1" && t.IdLoaiGiaSuc == 4),
-                        TongTraiCuuGC = g.Count(t => t.HinhThucNuoi == "1" && t.IdLoaiGiaSuc == 5),
-                        TongGC = g.Count(t => t.HinhThucNuoi == "1")
+                        TongTraiBoTN = g.Count(t => t.HinhThucChanNuoi == "0" && t.IdLoaiGiaSuc == 1),
+                        TongTraiDeTN = g.Count(t => t.HinhThucChanNuoi == "0" && t.IdLoaiGiaSuc == 2),
+                        TongTraiTrauTN = g.Count(t => t.HinhThucChanNuoi == "0" && t.IdLoaiGiaSuc == 3),
+                        TongTraiNguaTN = g.Count(t => t.HinhThucChanNuoi == "0" && t.IdLoaiGiaSuc == 4),
+                        TongTraiCuuTN = g.Count(t => t.HinhThucChanNuoi == "0" && t.IdLoaiGiaSuc == 5),
+                        TongTN = g.Count(t => t.HinhThucChanNuoi == "0"),
+                        TongTraiBoCT = g.Count(t => t.HinhThucChanNuoi == "2" && t.IdLoaiGiaSuc == 1),
+                        TongTraiDeCT = g.Count(t => t.HinhThucChanNuoi == "2" && t.IdLoaiGiaSuc == 2),
+                        TongTraiTrauCT = g.Count(t => t.HinhThucChanNuoi == "2" && t.IdLoaiGiaSuc == 3),
+                        TongTraiNguaCT = g.Count(t => t.HinhThucChanNuoi == "2" && t.IdLoaiGiaSuc == 4),
+                        TongTraiCuuCT = g.Count(t => t.HinhThucChanNuoi == "2" && t.IdLoaiGiaSuc == 5),
+                        TongCT = g.Count(t => t.HinhThucChanNuoi == "2"),
+                        TongTraiBoGC = g.Count(t => t.HinhThucChanNuoi == "1" && t.IdLoaiGiaSuc == 1),
+                        TongTraiDeGC = g.Count(t => t.HinhThucChanNuoi == "1" && t.IdLoaiGiaSuc == 2),
+                        TongTraiTrauGC = g.Count(t => t.HinhThucChanNuoi == "1" && t.IdLoaiGiaSuc == 3),
+                        TongTraiNguaGC = g.Count(t => t.HinhThucChanNuoi == "1" && t.IdLoaiGiaSuc == 4),
+                        TongTraiCuuGC = g.Count(t => t.HinhThucChanNuoi == "1" && t.IdLoaiGiaSuc == 5),
+                        TongGC = g.Count(t => t.HinhThucChanNuoi == "1")
                     })
                     .ToList();
 
-           
-                return Ok(farmStatistics); ; // Trả về Ok nếu header Accept là application/Ok
+
+            return Ok(farmStatistics); ; // Trả về Ok nếu header Accept là application/Ok
         }
 
         [HttpGet("BaoCaoSoHuuTTGiaCam")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public ActionResult BaoCaoSoHuuTTGiaCam()
         {
             var farmStatistics = _dbContext.TrangTraiGiaCam.Where(x => x.IsDeleted != true)
@@ -660,6 +590,7 @@ namespace TRANGTRAICHANNUOI.Controllers
         }
 
         [HttpGet("BaoCaoDacDiemTTHeo")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<IActionResult> BaoCaoDacDiemTTHeo()
         {
             var animalCounts = _dbContext.TrangTraiHeo.Where(x => x.IsDeleted != true)
@@ -691,6 +622,7 @@ namespace TRANGTRAICHANNUOI.Controllers
         }
 
         [HttpGet("BaoCaoDacDiemTTGiaCam")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<IActionResult> BaoCaoDacDiemTTGiaCam()
         {
             var animalCounts = _dbContext.TrangTraiGiaCam.Where(x => x.IsDeleted != true)
@@ -722,6 +654,7 @@ namespace TRANGTRAICHANNUOI.Controllers
         }
 
         [HttpGet("BaoCaoDacDiemTTGiaSuc")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<IActionResult> BaoCaoDacDiemTTGiaSuc()
         {
             var animalCounts = _dbContext.TrangTraiDaiGiaSuc.Where(x => x.IsDeleted != true)
@@ -753,6 +686,7 @@ namespace TRANGTRAICHANNUOI.Controllers
         }
 
         [HttpGet("BaoCaoTiemPhongTTHeo")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<IActionResult> BaoCaoTiemPhongTTHeo()
         {
             var query = from d in _dbContext.District
@@ -785,6 +719,7 @@ namespace TRANGTRAICHANNUOI.Controllers
         }
 
         [HttpGet("BaoCaoTiemPhongTTGiaCam")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<IActionResult> BaoCaoTiemPhongTTGiaCam()
         {
             var query = from d in _dbContext.District
@@ -817,6 +752,7 @@ namespace TRANGTRAICHANNUOI.Controllers
         }
 
         [HttpGet("BaoCaoTiemPhongTTGiaSuc")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<IActionResult> BaoCaoTiemPhongTTGiaSuc()
         {
             var query = from d in _dbContext.District
@@ -848,29 +784,16 @@ namespace TRANGTRAICHANNUOI.Controllers
             return Ok(result);
         }
 
-        [HttpPost("AddSaveBuffer")]
-		[Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
-		public async Task<IActionResult> AddSaveBuffer([FromBody] SaveBufferPandemic model)
-        {
-            if (ModelState.IsValid)
-            {
-                await _dbContext.SaveBufferPandemic.AddAsync(model);
-                await _dbContext.SaveChangesAsync();
-                return Ok(model);
-            }
-            return BadRequest(model);
-        }
-        
         [HttpGet("GetSaveBuffer")]
-		[Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
-		public async Task<IEnumerable<SaveBufferPandemic>> GetSaveBuffer()
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        public async Task<IEnumerable<SaveBufferPandemic>> GetSaveBuffer()
         {
             return await _dbContext.SaveBufferPandemic.ToListAsync();
         }
 
         [HttpGet("DeleteSaveBuffer/{id}")]
-		[Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
-		public async Task<IActionResult> DeleteSaveBuffer(Guid id)
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        public async Task<IActionResult> DeleteSaveBuffer(Guid id)
         {
             var savedBuffer = await _dbContext.SaveBufferPandemic.FindAsync(id);
             if (id == Guid.Empty)
@@ -889,5 +812,54 @@ namespace TRANGTRAICHANNUOI.Controllers
             }
         }
 
+        private string ConvertToUnSign(string input)
+        {
+            input = input.Trim();
+            for (int i = 0x20; i < 0x30; i++)
+            {
+                input = input.Replace(((char)i).ToString(), " ");
+            }
+            Regex regex = new Regex(@"\p{IsCombiningDiacriticalMarks}+");
+            string str = input.Normalize(NormalizationForm.FormD);
+            string str2 = regex.Replace(str, string.Empty).Replace('đ', 'd').Replace('Đ', 'D');
+            while (str2.IndexOf("?") >= 0)
+            {
+                str2 = str2.Remove(str2.IndexOf("?"), 1);
+            }
+            return str2;
+        }
+
+        private async Task<IActionResult> Delete(Guid id)
+        {
+            var map = await _dbContext.CoSoGietMo.FindAsync(id);
+            if (id == Guid.Empty)
+            {
+                return BadRequest();
+            }
+            try
+            {
+                map.IsDeleted = true;
+                _dbContext.CoSoGietMo.Update(map);
+                await _dbContext.SaveChangesAsync();
+                return RedirectToAction(nameof(Index));
+            }
+            catch (DbUpdateException)
+            {
+                return RedirectToAction(nameof(Delete), new { id = id, saveChangesError = true });
+            }
+        }
+
+        [HttpPost("AddSaveBuffer")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        public async Task<IActionResult> AddSaveBuffer([FromBody] SaveBufferPandemic model)
+        {
+            if (ModelState.IsValid)
+            {
+                await _dbContext.SaveBufferPandemic.AddAsync(model);
+                await _dbContext.SaveChangesAsync();
+                return Ok(model);
+            }
+            return BadRequest(model);
+        }
     }
 }

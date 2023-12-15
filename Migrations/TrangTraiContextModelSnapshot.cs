@@ -137,7 +137,7 @@ namespace Backend.Migrations
                     b.Property<DateTime?>("NgayATDB")
                         .HasColumnType("datetime2");
 
-                    b.Property<string>("SoADTB")
+                    b.Property<string>("SoATDB")
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
@@ -235,7 +235,7 @@ namespace Backend.Migrations
                     b.ToTable("CNDKCNTTHeo");
                 });
 
-            modelBuilder.Entity("Backend.Models.CNVSTPTTGiaCam", b =>
+            modelBuilder.Entity("Backend.Models.CNVSTYTTGiaCam", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -244,20 +244,20 @@ namespace Backend.Migrations
                     b.Property<Guid>("IdTrangTraiGiaCam")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<DateTime?>("NgayVSTP")
+                    b.Property<DateTime?>("NgayVSTY")
                         .HasColumnType("datetime2");
 
-                    b.Property<string>("SoVSTP")
+                    b.Property<string>("SoVSTY")
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
 
                     b.HasIndex("IdTrangTraiGiaCam");
 
-                    b.ToTable("CNVSTPTTGiaCam");
+                    b.ToTable("CNVSTYTTGiaCam");
                 });
 
-            modelBuilder.Entity("Backend.Models.CNVSTPTTGiaSuc", b =>
+            modelBuilder.Entity("Backend.Models.CNVSTYTTGiaSuc", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -266,20 +266,20 @@ namespace Backend.Migrations
                     b.Property<Guid>("IdTrangTraiDaiGiaSuc")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<DateTime?>("NgayVSTP")
+                    b.Property<DateTime?>("NgayVSTY")
                         .HasColumnType("datetime2");
 
-                    b.Property<string>("SoVSTP")
+                    b.Property<string>("SoVSTY")
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
 
                     b.HasIndex("IdTrangTraiDaiGiaSuc");
 
-                    b.ToTable("CNVSTPTTGiaSuc");
+                    b.ToTable("CNVSTYTTGiaSuc");
                 });
 
-            modelBuilder.Entity("Backend.Models.CNVSTPTTHeo", b =>
+            modelBuilder.Entity("Backend.Models.CNVSTYTTHeo", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -288,17 +288,17 @@ namespace Backend.Migrations
                     b.Property<Guid>("IdTrangTraiHeo")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<DateTime?>("NgayVSTP")
+                    b.Property<DateTime?>("NgayVSTY")
                         .HasColumnType("datetime2");
 
-                    b.Property<string>("SoVSTP")
+                    b.Property<string>("SoVSTY")
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
 
                     b.HasIndex("IdTrangTraiHeo");
 
-                    b.ToTable("CNVSTPTTHeo");
+                    b.ToTable("CNVSTYTTHeo");
                 });
 
             modelBuilder.Entity("Backend.Models.CNVietGAHPTTGiaCam", b =>
@@ -533,7 +533,7 @@ namespace Backend.Migrations
                     b.Property<bool?>("IsDeleted")
                         .HasColumnType("bit");
 
-                    b.Property<int?>("SoGiaSucBenh")
+                    b.Property<int?>("SoBenh")
                         .HasColumnType("int");
 
                     b.Property<string>("TenBenhNghiNgo")
@@ -2035,7 +2035,7 @@ namespace Backend.Migrations
                     b.Navigation("TrangTraiHeo");
                 });
 
-            modelBuilder.Entity("Backend.Models.CNVSTPTTGiaCam", b =>
+            modelBuilder.Entity("Backend.Models.CNVSTYTTGiaCam", b =>
                 {
                     b.HasOne("Backend.Models.TrangTraiGiaCam", "TrangTraiGiaCam")
                         .WithMany()
@@ -2046,7 +2046,7 @@ namespace Backend.Migrations
                     b.Navigation("TrangTraiGiaCam");
                 });
 
-            modelBuilder.Entity("Backend.Models.CNVSTPTTGiaSuc", b =>
+            modelBuilder.Entity("Backend.Models.CNVSTYTTGiaSuc", b =>
                 {
                     b.HasOne("Backend.Models.TrangTraiDaiGiaSuc", "TrangTraiDaiGiaSuc")
                         .WithMany()
@@ -2057,7 +2057,7 @@ namespace Backend.Migrations
                     b.Navigation("TrangTraiDaiGiaSuc");
                 });
 
-            modelBuilder.Entity("Backend.Models.CNVSTPTTHeo", b =>
+            modelBuilder.Entity("Backend.Models.CNVSTYTTHeo", b =>
                 {
                     b.HasOne("Backend.Models.TrangTraiHeo", "TrangTraiHeo")
                         .WithMany()

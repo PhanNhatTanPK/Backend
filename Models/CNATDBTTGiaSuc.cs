@@ -7,7 +7,7 @@ namespace Backend.Models
     {
         [Key]
         public Guid Id { get; set; }
-        public string? SoADTB { get; set; }
+        public string? SoATDB { get; set; }
         public DateTime? NgayATDB { get; set; }
         [ForeignKey(nameof(TrangTraiDaiGiaSuc))]
         public Guid IdTrangTraiDaiGiaSuc { get; set; }
