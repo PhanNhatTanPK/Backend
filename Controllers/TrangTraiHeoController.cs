@@ -6,7 +6,6 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Backend.Data;
 using Backend.Services;
 using Backend.Models;
-using ClosedXML.Excel;
 using TRANGTRAICHANNUOI.DTO;
 
 namespace TRANGTRAICHANNUOI.Controllers
